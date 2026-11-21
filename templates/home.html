@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 {% block content %}
 
@@ -157,6 +156,19 @@
 
 .showcase-card[hidden] {
   display: none !important;
+}
+
+/* Owner photos: same avatar space, with image fallback to initial. */
+.owner-avatar-img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  margin: 0 auto 12px;
+  border: 2px solid rgba(255, 202, 54, .55);
+  background: #151d2a;
 }
 
 @media (max-width: 600px) {
@@ -373,7 +385,19 @@
       <div class="owner">
     {% endif %}
 
-      <span class="avatar">{{ o.name[0] }}</span>
+      {% if o.avatar %}
+        <img
+          class="owner-avatar-img"
+          src="{{ url_for('uploaded', name=o.avatar) }}"
+          alt="{{ o.name }} profile photo"
+          loading="lazy"
+          width="72"
+          height="72"
+        >
+      {% else %}
+        <span class="avatar">{{ o.name[0] }}</span>
+      {% endif %}
+
       <strong>{{ o.name }}</strong>
 
       <small>
