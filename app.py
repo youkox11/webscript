@@ -1,24 +1,52 @@
+"""YOUKO HUB - Flask script library.
+
+Keeps the existing SQLite database and Flask endpoints while adding a
+persistent admin session and drag-free move-up/move-down ordering.
+"""
 import os
 import re
 import sqlite3
 import secrets
 import argparse
+from datetime import timedelta
 from pathlib import Path
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, abort
+
+from flask import (
+    Flask, render_template, request, redirect, url_for, session,
+    flash, send_from_directory, abort,
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 BASE = Path(__file__).resolve().parent
-app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
-app.config['MAX_CONTENT_LENGTH'] = 3 * 1024 * 1024
-app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
 DATA = Path(os.environ.get('DATA_DIR', str(BASE / 'data')))
 DATA.mkdir(parents=True, exist_ok=True)
 UPLOADS = DATA / 'uploads'
 UPLOADS.mkdir(parents=True, exist_ok=True)
 DB = DATA / 'site.sqlite3'
+
+app = Flask(__name__)
+
+# Use a stable secret so browser sessions survive app reloads.
+# Store it alongside the database (NOT in the GitHub repository).
+secret_file = DATA / '.flask_secret'
+if not os.environ.get('SECRET_KEY'):
+    try:
+        with secret_file.open('x') as f:
+            f.write(secrets.token_hex(32))
+        secret_file.chmod(0o600)
+    except FileExistsError:
+        pass
+app.secret_key = os.environ.get('SECRET_KEY') or secret_file.read_text().strip()
+
+app.config.update(
+    MAX_CONTENT_LENGTH=3 * 1024 * 1024,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=True,
+)
 
 
 def db():
@@ -32,6 +60,20 @@ def init():
         c.execute('CREATE TABLE IF NOT EXISTS scripts(id INTEGER PRIMARY KEY, name TEXT NOT NULL, game TEXT NOT NULL, tier TEXT NOT NULL, description TEXT, code TEXT NOT NULL, logo TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)')
         c.execute('CREATE TABLE IF NOT EXISTS owners(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, telegram TEXT NOT NULL DEFAULT "")')
         c.execute('CREATE TABLE IF NOT EXISTS admins(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL)')
+
+        # Add a sort column without dropping or recreating existing scripts.
+        existing_columns = {col['name'] for col in c.execute('PRAGMA table_info(scripts)')}
+        if 'sort_order' not in existing_columns:
+            c.execute('ALTER TABLE scripts ADD COLUMN sort_order INTEGER')
+
+        # Fill in positions only where missing, preserving stored manual order.
+        current_max = c.execute('SELECT MAX(sort_order) FROM scripts').fetchone()[0]
+        next_position = (current_max + 1) if current_max is not None else 0
+        missing = c.execute('SELECT id FROM scripts WHERE sort_order IS NULL ORDER BY id DESC').fetchall()
+        for row in missing:
+            c.execute('UPDATE scripts SET sort_order=? WHERE id=?', (next_position, row['id']))
+            next_position += 1
+
         for name in ('Youko', 'NhaZz', 'RU NG2', 'MENG'):
             c.execute('INSERT OR IGNORE INTO owners(name) VALUES (?)', (name,))
         username = os.environ.get('ADMIN_USERNAME', '').strip()
@@ -42,7 +84,8 @@ def init():
 
 
 def set_admin(username, password):
-    if not username.strip() or not password:
+    username = username.strip()
+    if not username or not password:
         raise ValueError('Username and password must not be empty')
     with db() as c:
         existing = c.execute('SELECT id FROM admins WHERE username=?', (username,)).fetchone()
@@ -66,12 +109,24 @@ def admin_required(f):
     return wrapper
 
 
+SCRIPT_ORDER = 'SELECT * FROM scripts ORDER BY sort_order ASC, id DESC'
+
+
 @app.route('/')
 def home():
     with db() as c:
-        scripts = c.execute('SELECT * FROM scripts ORDER BY id DESC').fetchall()
+        scripts = c.execute(SCRIPT_ORDER).fetchall()
         owners = c.execute('SELECT * FROM owners').fetchall()
     return render_template('home.html', scripts=scripts, owners=owners)
+
+
+@app.route('/script/<int:sid>')
+def script_detail(sid):
+    with db() as c:
+        script = c.execute('SELECT * FROM scripts WHERE id=?', (sid,)).fetchone()
+    if script is None:
+        abort(404)
+    return render_template('script_detail.html', script=script)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -83,6 +138,7 @@ def login():
         if admin and check_password_hash(admin['password_hash'], request.form.get('password', '')):
             session.clear()
             session['admin'] = admin['id']
+            session.permanent = True
             return redirect(url_for('dashboard'))
         flash('Invalid credentials')
     return render_template('login.html')
@@ -98,7 +154,7 @@ def logout():
 @admin_required
 def dashboard():
     with db() as c:
-        scripts = c.execute('SELECT * FROM scripts ORDER BY id DESC').fetchall()
+        scripts = c.execute(SCRIPT_ORDER).fetchall()
         owners = c.execute('SELECT * FROM owners').fetchall()
     return render_template('admin.html', scripts=scripts, owners=owners)
 
@@ -116,6 +172,12 @@ def logo_upload():
         image.verify()
         if image.format not in ('PNG', 'JPEG', 'WEBP'):
             abort(400, 'Invalid image format')
+        if image.format == 'PNG' and ext != '.png':
+            abort(400, 'File extension does not match image')
+        if image.format == 'WEBP' and ext != '.webp':
+            abort(400, 'File extension does not match image')
+        if image.format == 'JPEG' and ext not in ('.jpg', '.jpeg'):
+            abort(400, 'File extension does not match image')
     except (OSError, ValueError, UnidentifiedImageError):
         abort(400, 'Invalid image')
     file.stream.seek(0)
@@ -143,8 +205,33 @@ def save_script():
             c.execute('UPDATE scripts SET name=?,game=?,tier=?,description=?,code=?,logo=? WHERE id=?',
                       (name, game, tier, request.form.get('description', ''), code, logo or old['logo'], sid))
         else:
-            c.execute('INSERT INTO scripts(name,game,tier,description,code,logo) VALUES (?,?,?,?,?,?)',
-                      (name, game, tier, request.form.get('description', ''), code, logo))
+            minimum = c.execute('SELECT MIN(sort_order) FROM scripts').fetchone()[0]
+            first_position = (minimum - 1) if minimum is not None else 0
+            c.execute('INSERT INTO scripts(name,game,tier,description,code,logo,sort_order) VALUES (?,?,?,?,?,?,?)',
+                      (name, game, tier, request.form.get('description', ''), code, logo, first_position))
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/admin/move/<int:sid>/<direction>', methods=['POST'])
+@admin_required
+def move_script(sid, direction):
+    """Move a script one position up or down; persist the new order."""
+    if direction not in ('up', 'down'):
+        abort(400, 'Invalid direction')
+    with db() as c:
+        ordered_ids = [row['id'] for row in c.execute(
+            'SELECT id FROM scripts ORDER BY sort_order ASC, id DESC'
+        ).fetchall()]
+        if sid not in ordered_ids:
+            abort(404)
+        current_index = ordered_ids.index(sid)
+        new_index = current_index + (-1 if direction == 'up' else 1)
+        if 0 <= new_index < len(ordered_ids):
+            ordered_ids[current_index], ordered_ids[new_index] = (
+                ordered_ids[new_index], ordered_ids[current_index]
+            )
+            c.executemany('UPDATE scripts SET sort_order=? WHERE id=?',
+                          [(position, script_id) for position, script_id in enumerate(ordered_ids)])
     return redirect(url_for('dashboard'))
 
 
