@@ -41,7 +41,7 @@ if not os.environ.get('SECRET_KEY'):
 app.secret_key = os.environ.get('SECRET_KEY') or secret_file.read_text().strip()
 
 app.config.update(
-    MAX_CONTENT_LENGTH=3 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=10 * 1024 * 1024,
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
