@@ -23,6 +23,13 @@
   .ym-delete{margin-top:12px}
   .ym-danger{background:#431f2c;color:#ffd1dc;border-color:#814154}
   .ym-empty{color:#a8b6cc;padding:22px 0}
+  .owner-profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0}
+  .owner-profile-card{background:#101827;border:1px solid #34405b;border-radius:16px;padding:16px;min-width:0}
+  .owner-profile-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .owner-profile-photo{width:68px;height:68px;border-radius:50%;object-fit:cover;background:#273552;display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0;border:2px solid #435675}
+  .owner-profile-card label{display:block;margin:10px 0;font-size:13px;color:#b8c7de}
+  .owner-profile-card input{display:block;width:100%;margin-top:6px}
+  .owner-profile-note{font-size:12px;color:#9aaec8;margin:8px 0 0}
   @media(max-width:620px){.ym-card{padding:12px}.ym-logo{width:50px;height:50px}.ym-btn{padding:10px 11px;font-size:13px}}
 </style>
 <div class="section-head">
@@ -86,10 +93,31 @@
   </div>
 </section>
 <section class="admin-panel">
-  <h2>Owner Telegram Links</h2>
-  <form method="post" action="{{ url_for('owners_update') }}" class="editor">
-    {% for o in owners %}<label>{{ o.name }}<input name="owner_{{ o.id }}" value="{{ o.telegram }}" placeholder="Telegram username (without @)"></label>{% endfor %}
-    <button type="submit" class="primary">Save Telegram Links</button>
+  <h2>Owner Profiles &amp; Telegram</h2>
+  <p class="ym-note">Upload or replace each owner's photo. Leave an image field empty to keep the existing photo.</p>
+  <form method="post" action="{{ url_for('owners_update') }}" enctype="multipart/form-data">
+    <div class="owner-profile-grid">
+      {% for o in owners %}
+      <div class="owner-profile-card">
+        <div class="owner-profile-top">
+          {% if o.avatar %}
+          <img class="owner-profile-photo" src="{{ url_for('uploaded', name=o.avatar) }}" alt="{{ o.name }} avatar">
+          {% else %}
+          <span class="owner-profile-photo" aria-hidden="true">{{ o.name[0] }}</span>
+          {% endif %}
+          <div><strong>{{ o.name }}</strong><div class="ym-note">Owner Profile</div></div>
+        </div>
+        <label>Telegram Username
+          <input type="text" name="owner_{{ o.id }}" value="{{ o.telegram }}" placeholder="Without @" autocomplete="off">
+        </label>
+        <label>Upload / Change Profile Image
+          <input type="file" name="owner_image_{{ o.id }}" accept="image/png,image/jpeg,image/webp">
+        </label>
+        <p class="owner-profile-note">PNG, JPG, WEBP. Maximum 3 MB per request.</p>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="primary">Save Owner Profiles</button>
   </form>
 </section>
 <script>
