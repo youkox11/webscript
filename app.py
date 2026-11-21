@@ -66,6 +66,23 @@ def admin_required(f):
     return wrapper
 
 
+@app.route('/script/<int:sid>')
+def script_detail(sid):
+    with db() as c:
+        script = c.execute(
+            'SELECT * FROM scripts WHERE id=?',
+            (sid,)
+        ).fetchone()
+
+    if script is None:
+        abort(404)
+
+    return render_template(
+        'script_detail.html',
+        script=script
+    )
+
+
 @app.route('/')
 def home():
     with db() as c:
