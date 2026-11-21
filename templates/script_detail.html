@@ -1,0 +1,190 @@
+
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+.script-detail {
+  max-width: 1100px;
+  margin: 30px auto;
+  padding: 20px;
+  background: #101720;
+  color: #fff;
+  border: 1px solid #b98b12;
+  border-radius: 16px;
+}
+.script-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.script-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  object-fit: cover;
+  background: #e9a900;
+}
+.script-heading h1 {
+  color: #ffca36;
+  font-size: clamp(22px, 4vw, 32px);
+  margin: 0;
+}
+.script-badges, .features, .script-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.script-badges span {
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #19392e;
+  color: #69efae;
+  font-size: 12px;
+  font-weight: bold;
+}
+.script-notice {
+  padding: 16px;
+  margin: 24px 0;
+  background: #29251b;
+  color: #ffcd58;
+  border: 1px solid #80621c;
+  border-radius: 12px;
+}
+.script-preview {
+  min-height: 220px;
+  background: #171f2b;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.script-preview img {
+  width: 100%;
+  max-height: 540px;
+  object-fit: contain;
+}
+.feature-tag {
+  padding: 10px 14px;
+  border: 1px solid #755a19;
+  border-radius: 9px;
+  color: #ffd15d;
+  font-size: 13px;
+}
+.script-code {
+  background: #080e15;
+  border: 1px solid #293543;
+  border-radius: 12px;
+  margin-top: 24px;
+  overflow: hidden;
+}
+.script-code header {
+  padding: 16px;
+  color: #ffca36;
+  font-weight: bold;
+}
+.script-code pre {
+  padding: 18px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #d7e8ff;
+}
+.script-actions button {
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 9px;
+  background: #efb519;
+  color: #111;
+  font-weight: bold;
+  cursor: pointer;
+}
+</style>
+
+<main class="script-detail">
+  <div class="script-heading">
+    {% if script['logo'] %}
+      <img class="script-logo"
+           src="{{ url_for('uploaded', name=script['logo']) }}"
+           alt="Script logo">
+    {% else %}
+      <div class="script-logo" style="display:grid;place-items:center;font-size:32px">💎</div>
+    {% endif %}
+
+    <div>
+      <h1>{{ script['name'] }}</h1>
+      <p>{{ script['game'] }} — {{ script['tier'] }}</p>
+    </div>
+  </div>
+
+  <div class="script-badges">
+    <span>✅ WORKING</span>
+    <span>{{ script['tier']|upper }}</span>
+    <span>💻 PC</span>
+    <span>📱 MOBILE</span>
+  </div>
+
+  <div class="script-notice">
+    ⚠️ {{ script['description'] or 'Script information' }}
+  </div>
+
+  <div class="script-preview">
+    {% if script['logo'] %}
+      <img src="{{ url_for('uploaded', name=script['logo']) }}"
+           alt="Script preview">
+    {% else %}
+      <p>📸 Preview Image Coming Soon</p>
+    {% endif %}
+  </div>
+
+  <div class="features">
+    <span class="feature-tag">⚡ Script Features</span>
+    <span class="feature-tag">{{ script['game'] }}</span>
+    <span class="feature-tag">{{ script['tier'] }}</span>
+  </div>
+
+  <div class="script-code">
+    <header>📜 LUA SCRIPT</header>
+    <pre id="luaCode">{{ script['code'] }}</pre>
+  </div>
+
+  <div class="script-actions">
+    <button type="button" onclick="copyLua()">
+      📋 Copy Script
+    </button>
+    <button type="button" onclick="downloadLua()">
+      ⬇ Download .txt
+    </button>
+  </div>
+</main>
+
+<script>
+const luaCode = document.getElementById("luaCode");
+
+async function copyLua() {
+  try {
+    await navigator.clipboard.writeText(luaCode.textContent);
+    alert("Script copied successfully!");
+  } catch (error) {
+    alert("Copy failed. Please select the script manually.");
+  }
+}
+
+function downloadLua() {
+  const blob = new Blob(
+    [luaCode.textContent],
+    { type: "text/plain;charset=utf-8" }
+  );
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "roblox-script.txt";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+{% endblock %}
