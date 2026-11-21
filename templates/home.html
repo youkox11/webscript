@@ -2,6 +2,185 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<style>
+/* Homepage script showcase */
+.showcase-list {
+  display: grid;
+  gap: 28px;
+  margin-top: 25px;
+}
+
+.showcase-card {
+  background: #101720;
+  border: 1px solid #d5a600;
+  border-radius: 16px;
+  padding: 20px;
+  color: #f5f7ff;
+  min-width: 0;
+}
+
+.showcase-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.showcase-logo {
+  width: 70px;
+  height: 70px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 14px;
+  background: #dba900;
+}
+
+.showcase-name {
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 800;
+  color: #ffca36;
+  margin: 0;
+}
+
+.showcase-game {
+  margin: 4px 0;
+  color: #cbd5e1;
+}
+
+.showcase-badges,
+.showcase-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 18px 0;
+}
+
+.showcase-badge {
+  background: #193c31;
+  color: #6bf0ad;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.showcase-notice {
+  background: #29251c;
+  border: 1px solid #8c6d16;
+  color: #ffd261;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 18px 0;
+  white-space: pre-wrap;
+}
+
+.showcase-preview {
+  background: #080e16;
+  border-radius: 12px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.showcase-preview img {
+  display: block;
+  width: 100%;
+  max-height: 620px;
+  object-fit: contain;
+}
+
+.showcase-placeholder {
+  padding: 70px 20px;
+  color: #a5b1c6;
+}
+
+.showcase-feature {
+  border: 1px solid #76591b;
+  background: #1c201e;
+  color: #ffd15a;
+  padding: 10px 13px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.showcase-codebox {
+  background: #080e16;
+  border: 1px solid #293547;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 22px;
+}
+
+.showcase-code-title {
+  padding: 15px 18px;
+  color: #ffcc40;
+  font-weight: 800;
+  border-bottom: 1px solid #293547;
+}
+
+.showcase-code {
+  padding: 18px;
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  color: #d5e8ff;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.showcase-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.showcase-btn {
+  background: #f0b516;
+  color: #111;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.showcase-btn:hover {
+  background: #ffd04c;
+}
+
+.showcase-empty {
+  color: #a5b1c6;
+  padding: 25px 0;
+}
+
+.showcase-card[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 600px) {
+  .showcase-card {
+    padding: 13px;
+  }
+
+  .showcase-logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  .showcase-btn {
+    flex: 1;
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+
+  .showcase-code {
+    font-size: 11px;
+  }
+}
+</style>
+
 <section class="hero">
   <div class="eyebrow">
     ✦ THE ROBLOX SCRIPT DESTINATION
@@ -67,65 +246,112 @@
     </div>
   </div>
 
-  <div class="cards" id="cards">
+  <div class="showcase-list">
 
-    {% for s in scripts %}
+  {% for s in scripts %}
 
     <article
-      class="script-card"
+      class="showcase-card"
       data-tier="{{ s.tier }}"
       data-search="{{ (s.name ~ ' ' ~ s.game ~ ' ' ~ (s.description or ''))|lower }}"
     >
 
-      <div class="art">
+      <div class="showcase-head">
+
         {% if s.logo %}
           <img
+            class="showcase-logo"
             src="{{ url_for('uploaded', name=s.logo) }}"
             alt="{{ s.name }} logo"
             loading="lazy"
           >
         {% else %}
-          <span class="art-placeholder">◈</span>
+          <div class="showcase-logo" style="display:grid;place-items:center;font-size:30px">
+            💎
+          </div>
         {% endif %}
+
+        <div>
+          <h2 class="showcase-name">{{ s.name }}</h2>
+          <p class="showcase-game">
+            {{ s.game }} — {{ s.tier }}
+          </p>
+        </div>
       </div>
 
-      <div class="card-body">
+      <div class="showcase-badges">
+        <span class="showcase-badge">{{ s.tier|upper }}</span>
+        <span class="showcase-badge">ROBLOX</span>
+      </div>
 
-        <div class="card-meta">
-          <span class="tag {{ s.tier|lower }}">
-            {{ s.tier }}
-          </span>
-          <span class="muted">{{ s.game }}</span>
+      <div class="showcase-notice">
+        ⚠ {{ s.description or 'No description provided.' }}
+      </div>
+
+      <div class="showcase-preview">
+
+        {% if s.logo %}
+          <img
+            src="{{ url_for('uploaded', name=s.logo) }}"
+            alt="{{ s.name }} preview"
+            loading="lazy"
+          >
+        {% else %}
+          <div class="showcase-placeholder">
+            📸 Preview Image Coming Soon
+          </div>
+        {% endif %}
+
+      </div>
+
+      <div class="showcase-features">
+        <span class="showcase-feature">⚡ Script Features</span>
+        <span class="showcase-feature">{{ s.game }}</span>
+        <span class="showcase-feature">{{ s.tier }}</span>
+      </div>
+
+      <div class="showcase-codebox">
+
+        <div class="showcase-code-title">
+          📜 LUA SCRIPT
         </div>
 
-        <h3>{{ s.name }}</h3>
-
-        <p>{{ s.description or '' }}</p>
-
-        <a
-          class="card-action"
-          href="{{ url_for('script_detail', sid=s.id) }}"
-        >
-          View Script ↗
-        </a>
+        <pre class="showcase-code">{{ s.code }}</pre>
 
       </div>
+
+      <div class="showcase-actions">
+        <button
+          type="button"
+          class="showcase-btn"
+          onclick="copyShowcase(this)"
+        >
+          📋 Copy Script
+        </button>
+
+        <button
+          type="button"
+          class="showcase-btn"
+          onclick="downloadShowcase(this)"
+        >
+          ⬇ Download .txt
+        </button>
+      </div>
+
     </article>
 
-    {% else %}
+  {% else %}
 
-    <p class="muted">
+    <p class="showcase-empty">
       No scripts published yet.
-      Admin can add the first one.
     </p>
 
-    {% endfor %}
+  {% endfor %}
 
   </div>
 </section>
 
 <section class="owners">
-
   <div class="eyebrow">
     THE PEOPLE BEHIND THE HUB
   </div>
@@ -134,87 +360,135 @@
 
   <div class="owner-grid">
 
-    {% for o in owners %}
+  {% for o in owners %}
 
-      {% if o.telegram %}
-        <a
-          class="owner"
-          href="https://t.me/{{ o.telegram }}"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-      {% else %}
-        <div class="owner">
-      {% endif %}
+    {% if o.telegram %}
+      <a
+        class="owner"
+        href="https://t.me/{{ o.telegram }}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+    {% else %}
+      <div class="owner">
+    {% endif %}
 
-        <span class="avatar">{{ o.name[0] }}</span>
-        <strong>{{ o.name }}</strong>
+      <span class="avatar">{{ o.name[0] }}</span>
+      <strong>{{ o.name }}</strong>
 
-        <small>
-          {% if o.telegram %}
-            ↗ Telegram
-          {% else %}
-            Owner
-          {% endif %}
-        </small>
+      <small>
+        {% if o.telegram %}
+          ↗ Telegram
+        {% else %}
+          Owner
+        {% endif %}
+      </small>
 
-      {% if o.telegram %}
-        </a>
-      {% else %}
-        </div>
-      {% endif %}
+    {% if o.telegram %}
+      </a>
+    {% else %}
+      </div>
+    {% endif %}
 
-    {% endfor %}
+  {% endfor %}
 
   </div>
 </section>
 
 <script>
-  let current = 'All';
+function getShowcaseCode(button) {
+  return button
+    .closest('.showcase-card')
+    .querySelector('.showcase-code')
+    .textContent;
+}
 
-  function filterScripts() {
-    const search = document
-      .getElementById('search')
-      .value
-      .toLowerCase()
-      .trim();
-
-    document
-      .querySelectorAll('.script-card')
-      .forEach(card => {
-        const matchTier =
-          current === 'All' ||
-          card.dataset.tier === current;
-
-        const matchSearch =
-          card.dataset.search.includes(search);
-
-        card.hidden = !(matchTier && matchSearch);
-      });
+async function copyShowcase(button) {
+  try {
+    await navigator.clipboard.writeText(
+      getShowcaseCode(button)
+    );
+    const oldText = button.textContent;
+    button.textContent = '✓ Copied!';
+    setTimeout(() => {
+      button.textContent = oldText;
+    }, 1800);
+  } catch (e) {
+    alert('Copy failed. Select the code manually.');
   }
+}
 
-  document
+function downloadShowcase(button) {
+  const card = button.closest('.showcase-card');
+  const name = card
+    .querySelector('.showcase-name')
+    .textContent
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const blob = new Blob(
+    [getShowcaseCode(button)],
+    { type: 'text/plain;charset=utf-8' }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = (name || 'roblox-script') + '.txt';
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+let currentTier = 'All';
+
+function filterShowcases() {
+  const search = document
     .getElementById('search')
-    .addEventListener('input', filterScripts);
+    .value
+    .trim()
+    .toLowerCase();
 
   document
-    .querySelectorAll('[data-filter]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        current = button.dataset.filter;
+    .querySelectorAll('.showcase-card')
+    .forEach(card => {
+      const matchTier =
+        currentTier === 'All' ||
+        card.dataset.tier === currentTier;
 
-        document
-          .querySelectorAll('[data-filter]')
-          .forEach(item => {
-            item.classList.toggle(
-              'selected',
-              item === button
-            );
-          });
+      const matchSearch =
+        card.dataset.search.includes(search);
 
-        filterScripts();
-      });
+      card.hidden = !(matchTier && matchSearch);
     });
+}
+
+document
+  .getElementById('search')
+  .addEventListener('input', filterShowcases);
+
+document
+  .querySelectorAll('[data-filter]')
+  .forEach(button => {
+    button.addEventListener('click', () => {
+      currentTier = button.dataset.filter;
+
+      document
+        .querySelectorAll('[data-filter]')
+        .forEach(item => {
+          item.classList.toggle(
+            'selected',
+            item === button
+          );
+        });
+
+      filterShowcases();
+    });
+  });
 </script>
 
 {% endblock %}
