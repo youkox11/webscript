@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .ym-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .ym-list{display:grid;gap:14px;margin-top:20px}
+  .ym-card{background:#101827;border:1px solid #34405b;border-radius:16px;padding:16px;color:#f3f6ff;min-width:0}
+  .ym-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .ym-logo{width:60px;height:60px;border-radius:13px;object-fit:cover;background:#253552;display:grid;place-items:center;flex-shrink:0}
+  .ym-name{font-size:clamp(17px,2vw,23px);font-weight:800;overflow-wrap:anywhere}
+  .ym-sub{color:#a8b6cc;font-size:13px;margin-top:5px}
+  .ym-number{font-weight:700;color:#9cb1d5;background:#1b2940;padding:7px 10px;border-radius:10px;margin-left:auto}
+  .ym-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+  .ym-actions form{margin:0}
+  .ym-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #465572;border-radius:10px;background:#202d43;color:#f5f8ff;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
+  .ym-btn:hover{background:#344665}
+  .ym-btn:disabled{opacity:.38;cursor:not-allowed}
+  .ym-toggle{background:#4977df;border-color:#4977df;color:#fff}
+  .ym-detail{margin-top:16px;border-top:1px solid #34405b;padding-top:15px}
+  .ym-detail summary{cursor:pointer;color:#bcd2ff;font-weight:700;margin-bottom:16px}
+  .ym-preview{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:10px 0}
+  .ym-preview img{height:70px;width:70px;border-radius:12px;object-fit:cover}
+  .ym-note{font-size:13px;color:#adbbd2}
+  .ym-delete{margin-top:12px}
+  .ym-danger{background:#431f2c;color:#ffd1dc;border-color:#814154}
+  .ym-empty{color:#a8b6cc;padding:22px 0}
+  @media(max-width:620px){.ym-card{padding:12px}.ym-logo{width:50px;height:50px}.ym-btn{padding:10px 11px;font-size:13px}}
+</style>
+<div class="section-head">
+  <div><div class="eyebrow">PRIVATE CONTROL CENTER</div><h1>Admin <span>Dashboard.</span></h1></div>
+  <form method="post" action="{{ url_for('logout') }}"><button type="submit">Logout</button></form>
+</div>
+<section class="admin-panel">
+  <h2>Add a Script</h2>
+  <form method="post" action="{{ url_for('save_script') }}" enctype="multipart/form-data" class="editor">
+    <label>Script Name<input name="name" required placeholder="YOUKO HUB"></label>
+    <label>Roblox Game<input name="game" required placeholder="Steal An Egg"></label>
+    <label>Access Tier<select name="tier"><option>Free</option><option>Premium</option></select></label>
+    <label>Script Logo (PNG/JPG/WEBP, max 3 MB)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+    <label class="wide">Description<input name="description" placeholder="Features and description"></label>
+    <label class="wide">Lua Script<textarea name="code" rows="5" required placeholder="Paste your Lua code here"></textarea></label>
+    <button type="submit" class="primary">+ Publish Script</button>
+  </form>
+</section>
+<section class="admin-panel">
+  <div class="ym-head"><h2>Manage Scripts</h2><span class="ym-note">{{ scripts|length }} published scripts</span></div>
+  <p class="ym-note">Move scripts up or down to control their order on the homepage. Open Edit to change the logo or script details.</p>
+  <div class="ym-list">
+    {% for s in scripts %}
+    <article class="ym-card">
+      <div class="ym-top">
+        {% if s.logo %}<img class="ym-logo" src="{{ url_for('uploaded', name=s.logo) }}" alt="{{ s.name }} logo">
+        {% else %}<div class="ym-logo" aria-hidden="true">◈</div>{% endif %}
+        <div style="flex:1;min-width:150px"><div class="ym-name">{{ s.name }}</div><div class="ym-sub">{{ s.game }} · {{ s.tier }}</div></div>
+        <span class="ym-number">#{{ loop.index }}</span>
+      </div>
+      <div class="ym-actions">
+        <form method="post" action="{{ url_for('move_script', sid=s.id, direction='up') }}">
+          <button class="ym-btn" type="submit" {% if loop.first %}disabled title="Already first"{% endif %}>↑ Up</button>
+        </form>
+        <form method="post" action="{{ url_for('move_script', sid=s.id, direction='down') }}">
+          <button class="ym-btn" type="submit" {% if loop.last %}disabled title="Already last"{% endif %}>↓ Down</button>
+        </form>
+        <button class="ym-btn ym-toggle" type="button" aria-expanded="false" aria-controls="edit-{{ s.id }}" onclick="toggleScriptEditor(this, 'edit-{{ s.id }}')">✎ Edit / Logo</button>
+      </div>
+      <div class="ym-detail" id="edit-{{ s.id }}" hidden>
+        <form method="post" action="{{ url_for('save_script') }}" enctype="multipart/form-data" class="editor">
+          <input type="hidden" name="id" value="{{ s.id }}">
+          <label>Name<input name="name" value="{{ s.name }}" required></label>
+          <label>Game<input name="game" value="{{ s.game }}" required></label>
+          <label>Tier<select name="tier"><option value="Free" {% if s.tier == 'Free' %}selected{% endif %}>Free</option><option value="Premium" {% if s.tier == 'Premium' %}selected{% endif %}>Premium</option></select></label>
+          <label>Replace Logo<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+          <div class="wide ym-preview">
+            {% if s.logo %}<img src="{{ url_for('uploaded', name=s.logo) }}" alt="Current logo"><span class="ym-note">Current logo — leave the field empty to keep it.</span>
+            {% else %}<span class="ym-note">No logo uploaded yet.</span>{% endif %}
+          </div>
+          <label class="wide">Description<input name="description" value="{{ s.description or '' }}"></label>
+          <label class="wide">Lua Script<textarea name="code" rows="5" required>{{ s.code }}</textarea></label>
+          <button class="primary" type="submit">Save Changes</button>
+        </form>
+        <form class="ym-delete" method="post" action="{{ url_for('delete_script', sid=s.id) }}" onsubmit="return confirm('Permanently delete this script?')">
+          <button class="ym-btn ym-danger" type="submit">Delete Script</button>
+        </form>
+      </div>
+    </article>
+    {% else %}<p class="ym-empty">No scripts published yet.</p>{% endfor %}
+  </div>
+</section>
+<section class="admin-panel">
+  <h2>Owner Telegram Links</h2>
+  <form method="post" action="{{ url_for('owners_update') }}" class="editor">
+    {% for o in owners %}<label>{{ o.name }}<input name="owner_{{ o.id }}" value="{{ o.telegram }}" placeholder="Telegram username (without @)"></label>{% endfor %}
+    <button type="submit" class="primary">Save Telegram Links</button>
+  </form>
+</section>
+<script>
+function toggleScriptEditor(button, id) {
+  const panel = document.getElementById(id);
+  const opening = panel.hidden;
+  panel.hidden = !opening;
+  button.setAttribute('aria-expanded', String(opening));
+  button.textContent = opening ? '✕ Close Editor' : '✎ Edit / Logo';
+}
+</script>
+{% endblock %}
