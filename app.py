@@ -1,7 +1,7 @@
 """YOUKO HUB - Flask script library.
 
 Keeps the existing SQLite database and Flask endpoints while adding a
-persistent admin session and drag-free move-up/move-down ordering.
+persistent admin session, script ordering, and owner avatar uploads.
 """
 import os
 import re
@@ -59,6 +59,10 @@ def init():
     with db() as c:
         c.execute('CREATE TABLE IF NOT EXISTS scripts(id INTEGER PRIMARY KEY, name TEXT NOT NULL, game TEXT NOT NULL, tier TEXT NOT NULL, description TEXT, code TEXT NOT NULL, logo TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)')
         c.execute('CREATE TABLE IF NOT EXISTS owners(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, telegram TEXT NOT NULL DEFAULT "")')
+        # Safe migration: add owner avatars without deleting existing owners or links.
+        owner_columns = {col['name'] for col in c.execute('PRAGMA table_info(owners)')}
+        if 'avatar' not in owner_columns:
+            c.execute('ALTER TABLE owners ADD COLUMN avatar TEXT')
         c.execute('CREATE TABLE IF NOT EXISTS admins(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL)')
 
         # Add a sort column without dropping or recreating existing scripts.
@@ -159,31 +163,41 @@ def dashboard():
     return render_template('admin.html', scripts=scripts, owners=owners)
 
 
-def logo_upload():
-    file = request.files.get('logo')
+def image_upload(field_name):
+    """Validate an optional uploaded PNG/JPEG/WEBP and save with a random name."""
+    file = request.files.get(field_name)
     if not file or not file.filename:
         return None
     ext = Path(secure_filename(file.filename)).suffix.lower()
     if ext not in ('.png', '.jpg', '.jpeg', '.webp'):
-        abort(400, 'Only PNG, JPG, WEBP')
+        abort(400, 'Only PNG, JPG or WEBP images are allowed')
+
     from PIL import Image, UnidentifiedImageError
     try:
-        image = Image.open(file.stream)
-        image.verify()
-        if image.format not in ('PNG', 'JPEG', 'WEBP'):
+        with Image.open(file.stream) as image:
+            image.verify()
+            detected_format = image.format
+        if detected_format not in ('PNG', 'JPEG', 'WEBP'):
             abort(400, 'Invalid image format')
-        if image.format == 'PNG' and ext != '.png':
-            abort(400, 'File extension does not match image')
-        if image.format == 'WEBP' and ext != '.webp':
-            abort(400, 'File extension does not match image')
-        if image.format == 'JPEG' and ext not in ('.jpg', '.jpeg'):
-            abort(400, 'File extension does not match image')
-    except (OSError, ValueError, UnidentifiedImageError):
+        valid_extensions = {
+            'PNG': ('.png',),
+            'JPEG': ('.jpg', '.jpeg'),
+            'WEBP': ('.webp',),
+        }
+        if ext not in valid_extensions[detected_format]:
+            abort(400, 'Image extension does not match its contents')
+    except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
         abort(400, 'Invalid image')
+
     file.stream.seek(0)
     name = secrets.token_hex(16) + ext
     file.save(UPLOADS / name)
     return name
+
+
+def logo_upload():
+    """Keep compatibility with the existing script upload form."""
+    return image_upload('logo')
 
 
 @app.route('/admin/script', methods=['POST'])
@@ -246,14 +260,27 @@ def delete_script(sid):
 @app.route('/admin/owners', methods=['POST'])
 @admin_required
 def owners_update():
+    # Validate all usernames before changing the database.
     with db() as c:
-        updates = []
-        for row in c.execute('SELECT id FROM owners').fetchall():
-            value = request.form.get('owner_' + str(row['id']), '').strip().lstrip('@')
-            if value and not re.fullmatch(r'[A-Za-z0-9_]{5,32}', value):
-                abort(400, 'Invalid Telegram username')
-            updates.append((value, row['id']))
-        c.executemany('UPDATE owners SET telegram=? WHERE id=?', updates)
+        rows = c.execute('SELECT id FROM owners').fetchall()
+    updates = []
+    for row in rows:
+        owner_id = row['id']
+        telegram = request.form.get(f'owner_{owner_id}', '').strip().lstrip('@')
+        if telegram and not re.fullmatch(r'[A-Za-z0-9_]{5,32}', telegram):
+            abort(400, 'Invalid Telegram username')
+        # Form must have enctype="multipart/form-data" and this input name.
+        avatar = image_upload(f'owner_image_{owner_id}')
+        updates.append((telegram, avatar, owner_id))
+
+    with db() as c:
+        for telegram, avatar, owner_id in updates:
+            if avatar is None:
+                c.execute('UPDATE owners SET telegram=? WHERE id=?',
+                          (telegram, owner_id))
+            else:
+                c.execute('UPDATE owners SET telegram=?, avatar=? WHERE id=?',
+                          (telegram, avatar, owner_id))
     return redirect(url_for('dashboard'))
 
 
