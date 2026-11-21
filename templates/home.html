@@ -1,1 +1,220 @@
-{% extends 'base.html' %}{% block content %}<section class="hero"><div class="eyebrow">✦ THE ROBLOX SCRIPT DESTINATION</div><h1>Find Script next<br><span>Roblox power-up.</span></h1><p>One home for free and premium Roblox scripts. Discover, explore and copy in seconds.</p><a class="primary" href="#library">Explore Scripts ↗</a><div class="stats"><div><b>{{scripts|length}}</b><small>SCRIPTS</small></div><div><b>{{owners|length}}</b><small>OWNERS</small></div><div><b>24/7</b><small>ACCESS</small></div></div></section><section id="library"><div class="section-head"><div><div class="eyebrow">CURATED COLLECTION</div><h2>Script Library</h2></div><span class="muted">Free & Premium</span></div><div class="filters"><input id="search" placeholder="⌕  Search scripts or games..."><div class="pills"><button class="selected" data-filter="All">All Scripts</button><button data-filter="Free">Free</button><button data-filter="Premium">Premium</button></div></div><div class="cards" id="cards">{% for s in scripts %}<article class="script-card" data-tier="{{s.tier}}" data-search="{{(s.name~' '~s.game~' '~s.description)|lower}}"><div class="art">{% if s.logo %}<img src="{{url_for('uploaded',name=s.logo)}}" alt="{{s.name}} logo">{% else %}<span class="art-placeholder">◈</span>{% endif %}</div><div class="card-body"><div class="card-meta"><span class="tag {{s.tier|lower}}">{{s.tier}}</span><span class="muted">{{s.game}}</span></div><h3>{{s.name}}</h3><p>{{s.description}}</p><button class="card-action" onclick="openScript({{s.id}})">View Script ↗</button></div></article>{% else %}<p class="muted">No scripts published yet. Admin can add the first one.</p>{% endfor %}</div></section><section class="owners"><div class="eyebrow">THE PEOPLE BEHIND THE HUB</div><h2>Meet the Owners</h2><div class="owner-grid">{% for o in owners %}{% if o.telegram %}<a class="owner" href="https://t.me/{{o.telegram}}" target="_blank" rel="noopener noreferrer">{% else %}<div class="owner">{% endif %}<span class="avatar">{{o.name[0]}}</span><strong>{{o.name}}</strong><small>{% if o.telegram %}↗ Telegram{% else %}Owner{% endif %}</small>{% if o.telegram %}</a>{% else %}</div>{% endif %}{% endfor %}</div></section><dialog id="script-dialog"><button class="close" onclick="document.getElementById('script-dialog').close()">✕</button><div class="eyebrow">SCRIPT DETAILS</div><h2 id="dialog-title"></h2><pre id="dialog-code"></pre><button class="primary" id="copy-btn" onclick="copyScript()">Copy Script ⧉</button></dialog><script>const scripts={{scripts|map(attribute='id')|list|tojson}};const scriptData={ {% for s in scripts %}{{s.id}}:{name:{{s.name|tojson}},code:{{s.code|tojson}}}{% if not loop.last %},{% endif %}{% endfor %} };let activeCode='';function openScript(id){const s=scriptData[id];activeCode=s.code;document.getElementById('dialog-title').textContent=s.name;document.getElementById('dialog-code').textContent=s.code;document.getElementById('copy-btn').textContent='Copy Script ⧉';document.getElementById('script-dialog').showModal()}async function copyScript(){try{await navigator.clipboard.writeText(activeCode);document.getElementById('copy-btn').textContent='✓ Copied!'}catch(e){alert('Clipboard unavailable. Select and copy the code manually.')}}let current='All';function filter(){let q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('.script-card').forEach(c=>c.hidden=!((current==='All'||c.dataset.tier===current)&&c.dataset.search.includes(q)))}document.getElementById('search').addEventListener('input',filter);document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{current=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('selected',x===b));filter()}));</script>{% endblock %}
+
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="hero">
+  <div class="eyebrow">
+    ✦ THE ROBLOX SCRIPT DESTINATION
+  </div>
+
+  <h1>
+    Find Script next<br>
+    <span>Roblox power-up.</span>
+  </h1>
+
+  <p>
+    One home for free and premium Roblox scripts.
+    Discover, explore and copy in seconds.
+  </p>
+
+  <a class="primary" href="#library">
+    Explore Scripts ↗
+  </a>
+
+  <div class="stats">
+    <div>
+      <b>{{ scripts|length }}</b>
+      <small>SCRIPTS</small>
+    </div>
+    <div>
+      <b>{{ owners|length }}</b>
+      <small>OWNERS</small>
+    </div>
+    <div>
+      <b>24/7</b>
+      <small>ACCESS</small>
+    </div>
+  </div>
+</section>
+
+<section id="library">
+
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">CURATED COLLECTION</div>
+      <h2>Script Library</h2>
+    </div>
+    <span class="muted">Free & Premium</span>
+  </div>
+
+  <div class="filters">
+    <input
+      id="search"
+      type="search"
+      placeholder="⌕ Search scripts or games..."
+    >
+
+    <div class="pills">
+      <button type="button" class="selected" data-filter="All">
+        All Scripts
+      </button>
+      <button type="button" data-filter="Free">
+        Free
+      </button>
+      <button type="button" data-filter="Premium">
+        Premium
+      </button>
+    </div>
+  </div>
+
+  <div class="cards" id="cards">
+
+    {% for s in scripts %}
+
+    <article
+      class="script-card"
+      data-tier="{{ s.tier }}"
+      data-search="{{ (s.name ~ ' ' ~ s.game ~ ' ' ~ (s.description or ''))|lower }}"
+    >
+
+      <div class="art">
+        {% if s.logo %}
+          <img
+            src="{{ url_for('uploaded', name=s.logo) }}"
+            alt="{{ s.name }} logo"
+            loading="lazy"
+          >
+        {% else %}
+          <span class="art-placeholder">◈</span>
+        {% endif %}
+      </div>
+
+      <div class="card-body">
+
+        <div class="card-meta">
+          <span class="tag {{ s.tier|lower }}">
+            {{ s.tier }}
+          </span>
+          <span class="muted">{{ s.game }}</span>
+        </div>
+
+        <h3>{{ s.name }}</h3>
+
+        <p>{{ s.description or '' }}</p>
+
+        <a
+          class="card-action"
+          href="{{ url_for('script_detail', sid=s.id) }}"
+        >
+          View Script ↗
+        </a>
+
+      </div>
+    </article>
+
+    {% else %}
+
+    <p class="muted">
+      No scripts published yet.
+      Admin can add the first one.
+    </p>
+
+    {% endfor %}
+
+  </div>
+</section>
+
+<section class="owners">
+
+  <div class="eyebrow">
+    THE PEOPLE BEHIND THE HUB
+  </div>
+
+  <h2>Meet the Owners</h2>
+
+  <div class="owner-grid">
+
+    {% for o in owners %}
+
+      {% if o.telegram %}
+        <a
+          class="owner"
+          href="https://t.me/{{ o.telegram }}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+      {% else %}
+        <div class="owner">
+      {% endif %}
+
+        <span class="avatar">{{ o.name[0] }}</span>
+        <strong>{{ o.name }}</strong>
+
+        <small>
+          {% if o.telegram %}
+            ↗ Telegram
+          {% else %}
+            Owner
+          {% endif %}
+        </small>
+
+      {% if o.telegram %}
+        </a>
+      {% else %}
+        </div>
+      {% endif %}
+
+    {% endfor %}
+
+  </div>
+</section>
+
+<script>
+  let current = 'All';
+
+  function filterScripts() {
+    const search = document
+      .getElementById('search')
+      .value
+      .toLowerCase()
+      .trim();
+
+    document
+      .querySelectorAll('.script-card')
+      .forEach(card => {
+        const matchTier =
+          current === 'All' ||
+          card.dataset.tier === current;
+
+        const matchSearch =
+          card.dataset.search.includes(search);
+
+        card.hidden = !(matchTier && matchSearch);
+      });
+  }
+
+  document
+    .getElementById('search')
+    .addEventListener('input', filterScripts);
+
+  document
+    .querySelectorAll('[data-filter]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        current = button.dataset.filter;
+
+        document
+          .querySelectorAll('[data-filter]')
+          .forEach(item => {
+            item.classList.toggle(
+              'selected',
+              item === button
+            );
+          });
+
+        filterScripts();
+      });
+    });
+</script>
+
+{% endblock %}
