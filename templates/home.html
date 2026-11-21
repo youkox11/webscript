@@ -302,10 +302,17 @@
 
       <div class="showcase-preview">
 
-        {% if s.logo %}
+        {% if s.preview_image %}
+          <img
+            src="{{ url_for('uploaded', name=s.preview_image) }}"
+            alt="{{ s.name }} script preview"
+            loading="lazy"
+          >
+        {% elif s.logo %}
+          {# Preserve the existing large image for scripts without a new preview yet. #}
           <img
             src="{{ url_for('uploaded', name=s.logo) }}"
-            alt="{{ s.name }} preview"
+            alt="{{ s.name }} preview (legacy logo)"
             loading="lazy"
           >
         {% else %}
