@@ -19,6 +19,7 @@
   .ym-detail summary{cursor:pointer;color:#bcd2ff;font-weight:700;margin-bottom:16px}
   .ym-preview{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:10px 0}
   .ym-preview img{height:70px;width:70px;border-radius:12px;object-fit:cover}
+  .ym-preview img.ym-preview-large{width:min(100%,260px);height:145px;object-fit:contain;background:#080e16}
   .ym-note{font-size:13px;color:#adbbd2}
   .ym-delete{margin-top:12px}
   .ym-danger{background:#431f2c;color:#ffd1dc;border-color:#814154}
@@ -42,7 +43,8 @@
     <label>Script Name<input name="name" required placeholder="YOUKO HUB"></label>
     <label>Roblox Game<input name="game" required placeholder="Steal An Egg"></label>
     <label>Access Tier<select name="tier"><option>Free</option><option>Premium</option></select></label>
-    <label>Script Logo (PNG/JPG/WEBP, max 3 MB)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+    <label>Script Logo (small image next to name)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+    <label class="wide">Script Preview Image (large screenshot below description)<input type="file" name="preview_image" accept="image/png,image/jpeg,image/webp"><small class="ym-note">PNG, JPG or WEBP. Logo and preview are two separate images. Combined request must fit the server upload limit.</small></label>
     <label class="wide">Description<input name="description" placeholder="Features and description"></label>
     <label class="wide">Lua Script<textarea name="code" rows="5" required placeholder="Paste your Lua code here"></textarea></label>
     <button type="submit" class="primary">+ Publish Script</button>
@@ -50,7 +52,7 @@
 </section>
 <section class="admin-panel">
   <div class="ym-head"><h2>Manage Scripts</h2><span class="ym-note">{{ scripts|length }} published scripts</span></div>
-  <p class="ym-note">Move scripts up or down to control their order on the homepage. Open Edit to change the logo or script details.</p>
+  <p class="ym-note">Move scripts up or down to control their order on the homepage. Open Edit to change the logo, large preview image, or script details.</p>
   <div class="ym-list">
     {% for s in scripts %}
     <article class="ym-card">
@@ -75,10 +77,16 @@
           <label>Name<input name="name" value="{{ s.name }}" required></label>
           <label>Game<input name="game" value="{{ s.game }}" required></label>
           <label>Tier<select name="tier"><option value="Free" {% if s.tier == 'Free' %}selected{% endif %}>Free</option><option value="Premium" {% if s.tier == 'Premium' %}selected{% endif %}>Premium</option></select></label>
-          <label>Replace Logo<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
+          <label>Replace Script Logo<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>
           <div class="wide ym-preview">
-            {% if s.logo %}<img src="{{ url_for('uploaded', name=s.logo) }}" alt="Current logo"><span class="ym-note">Current logo — leave the field empty to keep it.</span>
+            {% if s.logo %}<img src="{{ url_for('uploaded', name=s.logo) }}" alt="Current script logo"><span class="ym-note">Small logo · leave empty to keep</span>
             {% else %}<span class="ym-note">No logo uploaded yet.</span>{% endif %}
+          </div>
+          <label class="wide">Replace Large Script Preview<input type="file" name="preview_image" accept="image/png,image/jpeg,image/webp"><small class="ym-note">Leave empty to keep the current preview. Combined request must fit the server upload limit.</small></label>
+          <div class="wide ym-preview">
+            {% if s.preview_image %}<img class="ym-preview-large" src="{{ url_for('uploaded', name=s.preview_image) }}" alt="Current script preview"><span class="ym-note">Current large preview · leave empty to keep</span>
+            {% elif s.logo %}<img class="ym-preview-large" src="{{ url_for('uploaded', name=s.logo) }}" alt="Legacy preview"><span class="ym-note">Currently using the old logo as preview. Upload a separate image to replace it.</span>
+            {% else %}<span class="ym-note">No preview uploaded yet.</span>{% endif %}
           </div>
           <label class="wide">Description<input name="description" value="{{ s.description or '' }}"></label>
           <label class="wide">Lua Script<textarea name="code" rows="5" required>{{ s.code }}</textarea></label>
