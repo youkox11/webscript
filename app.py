@@ -41,7 +41,7 @@ if not os.environ.get('SECRET_KEY'):
 app.secret_key = os.environ.get('SECRET_KEY') or secret_file.read_text().strip()
 
 app.config.update(
-    MAX_CONTENT_LENGTH=10 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=3 * 1024 * 1024,
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
@@ -59,6 +59,11 @@ def init():
     with db() as c:
         c.execute('CREATE TABLE IF NOT EXISTS scripts(id INTEGER PRIMARY KEY, name TEXT NOT NULL, game TEXT NOT NULL, tier TEXT NOT NULL, description TEXT, code TEXT NOT NULL, logo TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)')
         c.execute('CREATE TABLE IF NOT EXISTS owners(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, telegram TEXT NOT NULL DEFAULT "")')
+        # Add a separate preview image column without deleting existing scripts.
+        script_columns = {col['name'] for col in c.execute('PRAGMA table_info(scripts)')}
+        if 'preview_image' not in script_columns:
+            c.execute('ALTER TABLE scripts ADD COLUMN preview_image TEXT')
+
         # Safe migration: add owner avatars without deleting existing owners or links.
         owner_columns = {col['name'] for col in c.execute('PRAGMA table_info(owners)')}
         if 'avatar' not in owner_columns:
@@ -211,18 +216,21 @@ def save_script():
     if not name or not game or not code or tier not in ('Free', 'Premium'):
         abort(400, 'Invalid script data')
     logo = logo_upload()
+    preview_image = image_upload('preview_image')
     with db() as c:
         if sid:
             old = c.execute('SELECT * FROM scripts WHERE id=?', (sid,)).fetchone()
             if not old:
                 abort(404)
-            c.execute('UPDATE scripts SET name=?,game=?,tier=?,description=?,code=?,logo=? WHERE id=?',
-                      (name, game, tier, request.form.get('description', ''), code, logo or old['logo'], sid))
+            c.execute('UPDATE scripts SET name=?,game=?,tier=?,description=?,code=?,logo=?,preview_image=? WHERE id=?',
+                      (name, game, tier, request.form.get('description', ''), code,
+                       logo or old['logo'], preview_image or old['preview_image'], sid))
         else:
             minimum = c.execute('SELECT MIN(sort_order) FROM scripts').fetchone()[0]
             first_position = (minimum - 1) if minimum is not None else 0
-            c.execute('INSERT INTO scripts(name,game,tier,description,code,logo,sort_order) VALUES (?,?,?,?,?,?,?)',
-                      (name, game, tier, request.form.get('description', ''), code, logo, first_position))
+            c.execute('INSERT INTO scripts(name,game,tier,description,code,logo,preview_image,sort_order) VALUES (?,?,?,?,?,?,?,?)',
+                      (name, game, tier, request.form.get('description', ''), code,
+                       logo, preview_image, first_position))
     return redirect(url_for('dashboard'))
 
 
