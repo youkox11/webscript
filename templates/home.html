@@ -202,6 +202,21 @@
 .manual-copy-close { position: absolute; right: 12px; top: 12px; }
 #manual-copy-code { display: block; width: 100%; height: min(38dvh, 270px); margin: 14px 0; background: #080e16; color: #e1eaff; border: 1px solid #536789; font-family: monospace; font-size: 16px; resize: vertical; white-space: pre; }
 .manual-copy-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Lightweight loading state: never leave an empty black preview. */
+.showcase-preview { position: relative; min-height: 130px; background: #151e2e; }
+.preview-loading { display: grid; place-items: center; min-height: 130px; color: #aab9d3; font-size: 13px; }
+.showcase-preview.is-loaded .preview-loading,
+.showcase-preview.is-error .preview-loading { display: none; }
+.preview-fallback { display: none; padding: 45px 15px; color: #b9c7db; }
+.showcase-preview.is-error .preview-fallback { display: block; }
+.showcase-preview img { height: auto; }
+.owner-avatar-img, .showcase-logo { color: #b2c1d7; }
+.owner-avatar-fallback { margin: 0 auto 12px; }
+.showcase-logo-fallback { flex-shrink: 0; }
+/* Display:none wins over the .avatar/.showcase-logo display rules. */
+.owner-avatar-fallback[hidden], .showcase-logo-fallback[hidden] { display: none !important; }
+
 </style>
 
 <section class="hero">
@@ -286,8 +301,13 @@
             class="showcase-logo"
             src="{{ url_for('uploaded', name=s.logo) }}"
             alt="{{ s.name }} logo"
-            loading="lazy"
+            loading="{{ 'eager' if loop.first else 'lazy' }}"
+            decoding="async"
+            width="70" height="70"
+            onerror="this.hidden=true;this.nextElementSibling.hidden=false"
           >
+          <div class="showcase-logo showcase-logo-fallback" hidden
+               style="display:grid;place-items:center;font-size:30px">💎</div>
         {% else %}
           <div class="showcase-logo" style="display:grid;place-items:center;font-size:30px">
             💎
@@ -311,27 +331,22 @@
         ⚠ {{ s.description or 'No description provided.' }}
       </div>
 
-      <div class="showcase-preview">
-
-        {% if s.preview_image %}
+      <div class="showcase-preview{% if not s.preview_image and not s.logo %} is-error{% endif %}">
+        <div class="preview-loading" aria-hidden="true">🖼️ Loading preview...</div>
+        <div class="preview-fallback">📸 Preview unavailable</div>
+        {% if s.preview_image or s.logo %}
           <img
-            src="{{ url_for('uploaded', name=s.preview_image) }}"
+            src="{{ url_for('uploaded', name=s.preview_image or s.logo) }}"
             alt="{{ s.name }} script preview"
-            loading="lazy"
-          >
-        {% elif s.logo %}
-          {# Preserve the existing large image for scripts without a new preview yet. #}
-          <img
-            src="{{ url_for('uploaded', name=s.logo) }}"
-            alt="{{ s.name }} preview (legacy logo)"
-            loading="lazy"
+            loading="{{ 'eager' if loop.first else 'lazy' }}"
+            decoding="async"
+            {% if loop.first %}fetchpriority="high"{% endif %}
+            onload="this.parentElement.classList.add('is-loaded')"
+            onerror="this.hidden=true;this.parentElement.classList.add('is-error')"
           >
         {% else %}
-          <div class="showcase-placeholder">
-            📸 Preview Image Coming Soon
-          </div>
-        {% endif %}
 
+        {% endif %}
       </div>
 
       <div class="showcase-features">
@@ -416,10 +431,12 @@
           class="owner-avatar-img"
           src="{{ url_for('uploaded', name=o.avatar) }}"
           alt="{{ o.name }} profile photo"
-          loading="lazy"
+          loading="lazy" decoding="async"
+          onerror="this.hidden=true;this.nextElementSibling.hidden=false"
           width="72"
           height="72"
         >
+        <span class="avatar owner-avatar-fallback" hidden>{{ o.name[0] }}</span>
       {% else %}
         <span class="avatar">{{ o.name[0] }}</span>
       {% endif %}
