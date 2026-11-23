@@ -169,35 +169,57 @@ def dashboard():
 
 
 def image_upload(field_name):
-    """Validate an optional uploaded PNG/JPEG/WEBP and save with a random name."""
-    file = request.files.get(field_name)
-    if not file or not file.filename:
+    """Save a resized, optimized WEBP image; preserve existing files/DB rows.
+
+    The original upload is not stored. Each replacement gets a new random name,
+    so long-lived browser caching is safe and existing images remain accessible.
+    """
+    upload = request.files.get(field_name)
+    if not upload or not upload.filename:
         return None
-    ext = Path(secure_filename(file.filename)).suffix.lower()
+
+    ext = Path(secure_filename(upload.filename)).suffix.lower()
     if ext not in ('.png', '.jpg', '.jpeg', '.webp'):
-        abort(400, 'Only PNG, JPG or WEBP images are allowed')
+        abort(400, 'Only PNG, JPG and WEBP images are allowed')
 
-    from PIL import Image, UnidentifiedImageError
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    import warnings
+    # A large compressed image must not exhaust the worker's memory.
+    Image.MAX_IMAGE_PIXELS = 20_000_000
     try:
-        with Image.open(file.stream) as image:
-            image.verify()
-            detected_format = image.format
-        if detected_format not in ('PNG', 'JPEG', 'WEBP'):
-            abort(400, 'Invalid image format')
-        valid_extensions = {
-            'PNG': ('.png',),
-            'JPEG': ('.jpg', '.jpeg'),
-            'WEBP': ('.webp',),
-        }
-        if ext not in valid_extensions[detected_format]:
-            abort(400, 'Image extension does not match its contents')
-    except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
-        abort(400, 'Invalid image')
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', Image.DecompressionBombWarning)
+            with Image.open(upload.stream) as source:
+                detected = source.format
+                if detected not in ('PNG', 'JPEG', 'WEBP'):
+                    abort(400, 'Unsupported image contents')
+                valid = {
+                    'PNG': ('.png',),
+                    'JPEG': ('.jpg', '.jpeg'),
+                    'WEBP': ('.webp',),
+                }
+                if ext not in valid[detected]:
+                    abort(400, 'File extension does not match image')
+                # Apply phone rotation metadata before stripping EXIF.
+                image = ImageOps.exif_transpose(source)
+                image.load()
 
-    file.stream.seek(0)
-    name = secrets.token_hex(16) + ext
-    file.save(UPLOADS / name)
-    return name
+        # Smaller images improve loading times inside Telegram's browser.
+        is_preview = field_name == 'preview_image'
+        limit = 1280 if is_preview else 256
+        image.thumbnail((limit, limit), Image.Resampling.LANCZOS)
+        if image.mode not in ('RGB', 'RGBA'):
+            image = image.convert('RGBA' if 'A' in image.getbands() else 'RGB')
+
+        name = secrets.token_hex(16) + '.webp'
+        destination = UPLOADS / name
+        # WEBP supports both normal pictures and transparent logos.
+        image.save(destination, format='WEBP', quality=78 if is_preview else 76,
+                   method=4)
+        return name
+    except (OSError, ValueError, UnidentifiedImageError,
+            Image.DecompressionBombError, Image.DecompressionBombWarning):
+        abort(400, 'Invalid or excessively large image')
 
 
 def logo_upload():
@@ -294,7 +316,7 @@ def owners_update():
 
 @app.route('/uploads/<path:name>')
 def uploaded(name):
-    return send_from_directory(UPLOADS, name)
+    return send_from_directory(UPLOADS, name, max_age=31536000)
 
 
 @app.after_request
