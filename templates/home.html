@@ -191,6 +191,17 @@
     font-size: 11px;
   }
 }
+
+/* Telegram/iOS clipboard fallback */
+.showcase-manual-btn { background: #253348; color: #f5f7ff; border: 1px solid #536789; }
+.manual-copy-modal[hidden] { display: none !important; }
+.manual-copy-modal { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.78); display: grid; place-items: center; padding: 15px; }
+.manual-copy-panel { position: relative; width: min(620px,100%); max-height: 88dvh; overflow: auto; background: #131a2a; border: 1px solid #d5a600; border-radius: 17px; padding: 20px; color: #f5f7ff; }
+.manual-copy-panel h2 { padding-right: 40px; font-size: 23px; }
+.manual-copy-panel p { color: #cad3e4; font-size: 14px; }
+.manual-copy-close { position: absolute; right: 12px; top: 12px; }
+#manual-copy-code { display: block; width: 100%; height: min(38dvh, 270px); margin: 14px 0; background: #080e16; color: #e1eaff; border: 1px solid #536789; font-family: monospace; font-size: 16px; resize: vertical; white-space: pre; }
+.manual-copy-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 </style>
 
 <section class="hero">
@@ -355,6 +366,14 @@
         >
           ⬇ Download .txt
         </button>
+
+        <button
+          type="button"
+          class="showcase-btn showcase-manual-btn"
+          onclick="openManualCopy(this)"
+        >
+          ✋ Manual Copy
+        </button>
       </div>
 
     </article>
@@ -426,6 +445,25 @@
   </div>
 </section>
 
+<!-- Fallback when Telegram/iOS blocks copying to the clipboard. -->
+<div id="manual-copy-modal" class="manual-copy-modal" hidden role="dialog"
+     aria-modal="true" aria-labelledby="manual-copy-heading">
+  <div class="manual-copy-panel">
+    <button type="button" class="manual-copy-close" onclick="closeManualCopy()"
+            aria-label="Close manual copy window">✕</button>
+    <h2 id="manual-copy-heading">📋 Copy Lua Script</h2>
+    <p>Telegram may block automatic copying. Tap <strong>Select All</strong>, then
+       long-press the highlighted code and choose <strong>Copy</strong>.
+       You can also open this page in Safari.</p>
+    <textarea id="manual-copy-code" readonly spellcheck="false"
+              aria-label="Lua script code"></textarea>
+    <div class="manual-copy-actions">
+      <button type="button" class="showcase-btn" onclick="selectManualCode()">Select All</button>
+      <button type="button" class="showcase-btn" onclick="closeManualCopy()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function getShowcaseCode(button) {
   return button
@@ -434,19 +472,87 @@ function getShowcaseCode(button) {
     .textContent;
 }
 
-async function copyShowcase(button) {
+// Telegram in-app browsers may block the asynchronous Clipboard API.
+// Try the synchronous copy fallback while the original tap is still active.
+function legacyCopy(text) {
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.setAttribute('readonly', '');
+  field.setAttribute('aria-label', 'Script text to copy');
+  field.style.position = 'fixed';
+  field.style.left = '0';
+  field.style.top = '0';
+  field.style.width = '1px';
+  field.style.height = '1px';
+  field.style.opacity = '0';
+  field.style.fontSize = '16px';
+  document.body.appendChild(field);
+
+  let successful = false;
   try {
-    await navigator.clipboard.writeText(
-      getShowcaseCode(button)
-    );
-    const oldText = button.textContent;
-    button.textContent = '✓ Copied!';
-    setTimeout(() => {
-      button.textContent = oldText;
-    }, 1800);
-  } catch (e) {
-    alert('Copy failed. Select the code manually.');
+    field.focus();
+    field.select();
+    field.setSelectionRange(0, field.value.length);
+    successful = document.execCommand('copy');
+  } catch (error) {
+    successful = false;
+  } finally {
+    field.remove();
   }
+  return successful;
+}
+
+function showCopied(button) {
+  const original = button.textContent;
+  button.textContent = '✅ Copied!';
+  window.setTimeout(() => {
+    button.textContent = original;
+  }, 1800);
+}
+
+function openManualCopy(button) {
+  const modal = document.getElementById('manual-copy-modal');
+  const field = document.getElementById('manual-copy-code');
+  field.value = getShowcaseCode(button);
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  selectManualCode();
+}
+
+function selectManualCode() {
+  const field = document.getElementById('manual-copy-code');
+  field.focus();
+  field.select();
+  field.setSelectionRange(0, field.value.length);
+}
+
+function closeManualCopy() {
+  document.getElementById('manual-copy-modal').hidden = true;
+  document.body.style.overflow = '';
+}
+
+async function copyShowcase(button) {
+  const text = getShowcaseCode(button);
+
+  // iPhone Telegram/Safari: must run synchronously inside the click.
+  if (legacyCopy(text)) {
+    showCopied(button);
+    return;
+  }
+
+  // Modern browsers: try the Clipboard API if the fallback was blocked.
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showCopied(button);
+      return;
+    } catch (error) {
+      console.warn('Clipboard permission denied:', error);
+    }
+  }
+
+  // Nothing can force Telegram's clipboard permission; show selectable code.
+  openManualCopy(button);
 }
 
 function downloadShowcase(button) {
