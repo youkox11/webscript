@@ -32,7 +32,20 @@ DATA.mkdir(parents=True, exist_ok=True)
 UPLOADS = DATA / 'uploads'
 UPLOADS.mkdir(parents=True, exist_ok=True)
 DB = DATA / 'site.sqlite3' 
+print("[STORAGE] DATA_DIR:", DATA, flush=True)
+print("[STORAGE] DATABASE:", DB, flush=True)
+print("[STORAGE] UPLOADS:", UPLOADS, flush=True)
+print("[STORAGE] DB EXISTS:", DB.exists(), flush=True)
+print("[STORAGE] WRITABLE:", os.access(DATA, os.W_OK), flush=True)
 
+if DB.exists():
+    print("[STORAGE] DB SIZE:", DB.stat().st_size, flush=True)
+
+marker = DATA / "persistence_test.txt"
+print("[STORAGE] MARKER EXISTS:", marker.exists(), flush=True)
+
+if not marker.exists():
+    marker.write_text("Persistence test", encoding="utf-8")
 app = Flask(__name__)
 
 # Use a stable secret so browser sessions survive app reloads.
