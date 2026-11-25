@@ -6,24 +6,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 
+<style>
+.anime-banner { width:100%; max-width:none; margin:0 auto 14px; }
+.anime-banner img { width:100%; height:auto; display:block; }
+.banner-stats { margin:0; padding:0; border:0; }
+#library { margin-top:28px; }
+</style>
 <section class="anime-banner" aria-label="Animated Roblox Script Hub artwork">
   <img src="{{ url_for('static', filename='anime/anime-banner-8s.gif') }}"
        alt="Roblox Script Hub animated anime banner" width="355" height="265"
        decoding="async" fetchpriority="high">
 </section>
-<section class="hero anime-hero" aria-label="Roblox Script Hub script library">
-  <div class="anime-content">
-    <div class="eyebrow">✦ ROBLOX SCRIPT LIBRARY</div>
-    <h1>FIND YOUR NEXT<br><span>ROBLOX SCRIPT</span></h1>
-    <p>Explore free and premium Roblox scripts. Search, copy and download in seconds.</p>
-    <a class="primary" href="#library">EXPLORE SCRIPTS ↗</a>
-    <div class="stats">
+    <div class="stats banner-stats">
       <div><b>{{ scripts|length }}</b><small>SCRIPTS</small></div>
       <div><b>{{ owners|length }}</b><small>OWNERS</small></div>
       <div><b>24/7</b><small>ACCESS</small></div>
     </div>
-  </div>
-</section>
 
 <section id="library">
 
