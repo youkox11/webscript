@@ -1,11 +1,12 @@
 """Roblox Script Hub - Flask application (Wasmer-ready).
 
-Preserves existing endpoints and SQLite data. Configure DATA_DIR to a mounted
-persistent directory before using the application in production.
+MySQL storage. Existing SQLite data requires separate migration.
 """
 import os
 import re
-import sqlite3
+import pymysql
+from pymysql.cursors import DictCursor
+from io import BytesIO
 import secrets
 import argparse
 from datetime import timedelta
@@ -19,46 +20,8 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-BASE = Path(__file__).resolve().parent
-# Set DATA_DIR to the absolute path of a *mounted persistent volume* on Wasmer.
-# The default is for local development only; it may be ephemeral in the cloud.
-configured_data_dir = os.environ.get('DATA_DIR', '').strip()
-if configured_data_dir and not Path(configured_data_dir).is_absolute():
-    raise RuntimeError('DATA_DIR must be an absolute path')
-if os.environ.get('REQUIRE_PERSISTENT_DATA') == '1' and not configured_data_dir:
-    raise RuntimeError('Set DATA_DIR to a persistent mounted volume before deploying')
-DATA = Path(configured_data_dir) if configured_data_dir else BASE / 'data'
-DATA.mkdir(parents=True, exist_ok=True)
-UPLOADS = DATA / 'uploads'
-UPLOADS.mkdir(parents=True, exist_ok=True)
-DB = DATA / 'site.sqlite3' 
-print("[STORAGE] DATA_DIR:", DATA, flush=True)
-print("[STORAGE] DATABASE:", DB, flush=True)
-print("[STORAGE] UPLOADS:", UPLOADS, flush=True)
-print("[STORAGE] DB EXISTS:", DB.exists(), flush=True)
-print("[STORAGE] WRITABLE:", os.access(DATA, os.W_OK), flush=True)
-
-if DB.exists():
-    print("[STORAGE] DB SIZE:", DB.stat().st_size, flush=True)
-
-marker = DATA / "persistence_test.txt"
-print("[STORAGE] MARKER EXISTS:", marker.exists(), flush=True)
-
-if not marker.exists():
-    marker.write_text("Persistence test", encoding="utf-8")
 app = Flask(__name__)
-
-# Use a stable secret so browser sessions survive app reloads.
-# Store it alongside the database (NOT in the GitHub repository).
-secret_file = DATA / '.flask_secret'
-if not os.environ.get('SECRET_KEY'):
-    try:
-        with secret_file.open('x') as f:
-            f.write(secrets.token_hex(32))
-        secret_file.chmod(0o600)
-    except FileExistsError:
-        pass
-app.secret_key = os.environ.get('SECRET_KEY') or secret_file.read_text().strip()
+app.secret_key = os.environ['SECRET_KEY']
 
 app.config.update(
     MAX_CONTENT_LENGTH=10 * 1024 * 1024,
@@ -69,47 +32,39 @@ app.config.update(
 )
 
 
-def db():
-    connection = sqlite3.connect(DB, timeout=15)
-    connection.row_factory = sqlite3.Row
-    return connection
+class Database:
+    def __enter__(self):
+        self.conn = pymysql.connect(host=os.environ['DB_HOST'], port=int(os.environ.get('DB_PORT', '3306')), user=os.environ['DB_USERNAME'], password=os.environ['DB_PASSWORD'], database=os.environ['DB_NAME'], charset='utf8mb4', cursorclass=DictCursor, connect_timeout=10)
+        return self
+    def execute(self, sql, args=()):
+        cursor = self.conn.cursor()
+        cursor.execute(sql.replace('?', '%s'), args)
+        return cursor
+    def executemany(self, sql, args):
+        cursor = self.conn.cursor()
+        cursor.executemany(sql.replace('?', '%s'), args)
+        return cursor
+    def __exit__(self, typ, value, traceback):
+        try:
+            self.conn.rollback() if typ else self.conn.commit()
+        finally:
+            self.conn.close()
 
+def db():
+    return Database()
 
 def init():
     with db() as c:
-        c.execute('CREATE TABLE IF NOT EXISTS scripts(id INTEGER PRIMARY KEY, name TEXT NOT NULL, game TEXT NOT NULL, tier TEXT NOT NULL, description TEXT, code TEXT NOT NULL, logo TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)')
-        c.execute('CREATE TABLE IF NOT EXISTS owners(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, telegram TEXT NOT NULL DEFAULT "")')
-        # Add a separate preview image column without deleting existing scripts.
-        script_columns = {col['name'] for col in c.execute('PRAGMA table_info(scripts)')}
-        if 'preview_image' not in script_columns:
-            c.execute('ALTER TABLE scripts ADD COLUMN preview_image TEXT')
-
-        # Safe migration: add owner avatars without deleting existing owners or links.
-        owner_columns = {col['name'] for col in c.execute('PRAGMA table_info(owners)')}
-        if 'avatar' not in owner_columns:
-            c.execute('ALTER TABLE owners ADD COLUMN avatar TEXT')
-        c.execute('CREATE TABLE IF NOT EXISTS admins(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL)')
-
-        # Add a sort column without dropping or recreating existing scripts.
-        existing_columns = {col['name'] for col in c.execute('PRAGMA table_info(scripts)')}
-        if 'sort_order' not in existing_columns:
-            c.execute('ALTER TABLE scripts ADD COLUMN sort_order INTEGER')
-
-        # Fill in positions only where missing, preserving stored manual order.
-        current_max = c.execute('SELECT MAX(sort_order) FROM scripts').fetchone()[0]
-        next_position = (current_max + 1) if current_max is not None else 0
-        missing = c.execute('SELECT id FROM scripts WHERE sort_order IS NULL ORDER BY id DESC').fetchall()
-        for row in missing:
-            c.execute('UPDATE scripts SET sort_order=? WHERE id=?', (next_position, row['id']))
-            next_position += 1
-
+        c.execute("CREATE TABLE IF NOT EXISTS scripts(id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255) NOT NULL, game VARCHAR(255) NOT NULL, tier VARCHAR(20) NOT NULL, description TEXT, code LONGTEXT NOT NULL, logo VARCHAR(255), preview_image VARCHAR(255), sort_order BIGINT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS owners(id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255) UNIQUE NOT NULL, telegram VARCHAR(255) NOT NULL DEFAULT '', avatar VARCHAR(255))")
+        c.execute("CREATE TABLE IF NOT EXISTS admins(id BIGINT PRIMARY KEY AUTO_INCREMENT, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(512) NOT NULL)")
+        c.execute("CREATE TABLE IF NOT EXISTS images(name VARCHAR(255) PRIMARY KEY, content LONGBLOB NOT NULL)")
         for name in ('Youko', 'NhaZz', 'RU NG2', 'MENG'):
-            c.execute('INSERT OR IGNORE INTO owners(name) VALUES (?)', (name,))
+            c.execute('INSERT IGNORE INTO owners(name) VALUES (?)', (name,))
         username = os.environ.get('ADMIN_USERNAME', '').strip()
         password = os.environ.get('ADMIN_PASSWORD', '')
         if username and password and not c.execute('SELECT 1 FROM admins LIMIT 1').fetchone():
-            c.execute('INSERT INTO admins(username, password_hash) VALUES (?, ?)',
-                      (username, generate_password_hash(password)))
+            c.execute('INSERT IGNORE INTO admins(username,password_hash) VALUES (?,?)', (username, generate_password_hash(password)))
 
 
 def set_admin(username, password):
@@ -147,7 +102,7 @@ def health():
     try:
         with db() as c:
             c.execute('SELECT 1').fetchone()
-    except sqlite3.Error:
+    except pymysql.MySQLError:
         return {'status': 'error'}, 503
     return {'status': 'ok'}
 
@@ -243,10 +198,10 @@ def image_upload(field_name):
             image = image.convert('RGBA' if 'A' in image.getbands() else 'RGB')
 
         name = secrets.token_hex(16) + '.webp'
-        destination = UPLOADS / name
-        # WEBP supports both normal pictures and transparent logos.
-        image.save(destination, format='WEBP', quality=78 if is_preview else 76,
-                   method=4)
+        buffer = BytesIO()
+        image.save(buffer, format='WEBP', quality=78 if is_preview else 76, method=4)
+        with db() as c:
+            c.execute('INSERT INTO images(name,content) VALUES (?,?)', (name, buffer.getvalue()))
         return name
     except (OSError, ValueError, UnidentifiedImageError,
             Image.DecompressionBombError, Image.DecompressionBombWarning):
@@ -279,7 +234,7 @@ def save_script():
                       (name, game, tier, request.form.get('description', ''), code,
                        logo or old['logo'], preview_image or old['preview_image'], sid))
         else:
-            minimum = c.execute('SELECT MIN(sort_order) FROM scripts').fetchone()[0]
+            minimum = c.execute('SELECT MIN(sort_order) AS minimum FROM scripts').fetchone()['minimum']
             first_position = (minimum - 1) if minimum is not None else 0
             c.execute('INSERT INTO scripts(name,game,tier,description,code,logo,preview_image,sort_order) VALUES (?,?,?,?,?,?,?,?)',
                       (name, game, tier, request.form.get('description', ''), code,
@@ -347,7 +302,12 @@ def owners_update():
 
 @app.route('/uploads/<path:name>')
 def uploaded(name):
-    return send_from_directory(UPLOADS, name, max_age=31536000)
+    with db() as c:
+        row = c.execute('SELECT content FROM images WHERE name=?', (name,)).fetchone()
+    if not row:
+        abort(404)
+    from flask import send_file
+    return send_file(BytesIO(row['content']), mimetype='image/webp', max_age=31536000)
 
 
 @app.after_request
