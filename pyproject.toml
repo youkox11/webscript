@@ -1,0 +1,15 @@
+
+[project]
+name = "youko-webscript"
+version = "1.0.0"
+description = "YOUKO HUB Flask Website"
+requires-python = ">=3.13"
+dependencies = [
+    "Flask>=3.1,<4",
+    "Pillow>=11,<13",
+    "gunicorn>=23,<26",
+    "uvicorn>=0.30",
+]
+
+[tool.uv]
+package = false
