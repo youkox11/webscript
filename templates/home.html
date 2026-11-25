@@ -217,39 +217,70 @@
 /* Display:none wins over the .avatar/.showcase-logo display rules. */
 .owner-avatar-fallback[hidden], .showcase-logo-fallback[hidden] { display: none !important; }
 
+
+/* YOUKO HUB Anime V4 — homepage-only skin, no backend changes */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap');
+.anime-hero {position:relative;isolation:isolate;overflow:hidden;min-height:510px;padding:clamp(26px,5vw,64px)!important;border:1px solid #b82736!important;border-radius:22px!important;background:radial-gradient(ellipse at 78% 40%,#681222 0%,transparent 45%),radial-gradient(ellipse at 10% 90%,#2e0b14 0%,transparent 55%),#08080d!important;box-shadow:0 0 45px #a30d2429,inset 0 0 50px #0009!important;color:#fff!important}
+.anime-hero:before {content:'';position:absolute;inset:-50%;z-index:-2;pointer-events:none;background:repeating-conic-gradient(from 0deg at 70% 45%,transparent 0 17deg,#ff34451a 18deg 19deg,transparent 20deg 40deg);animation:animeRotate 38s linear infinite}
+.anime-hero:after {content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(90deg,#09080de8 0%,#09080dc2 44%,transparent 80%)}
+.anime-hero .anime-content {position:relative;z-index:3;max-width:620px}
+.anime-hero .eyebrow {display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border:1px solid #f04453a0;background:#310b19c9;color:#ffb4b9!important;font:700 14px 'Rajdhani',sans-serif;letter-spacing:2px;text-transform:uppercase}
+.anime-hero h1 {font:900 clamp(45px,7.5vw,94px)/.95 'Barlow Condensed',Impact,sans-serif!important;letter-spacing:.01em!important;text-transform:uppercase!important;color:#fff!important;margin:22px 0!important;text-shadow:0 5px 22px #000}
+.anime-hero h1 span {color:#ff354a!important;background:none!important;-webkit-text-fill-color:#ff354a!important;text-shadow:0 0 26px #ff203e75}
+.anime-hero p {font:600 clamp(15px,2vw,19px)/1.45 'Rajdhani',sans-serif!important;color:#e3d6db!important;max-width:420px}
+.anime-hero .primary {display:inline-block;margin-top:18px;padding:13px 25px!important;border:1px solid #ff6070!important;background:linear-gradient(125deg,#aa1025,#f02c42)!important;color:#fff!important;font:800 18px 'Rajdhani',sans-serif!important;text-transform:uppercase;letter-spacing:1px;box-shadow:0 0 22px #ed183a70!important;transition:transform .2s,box-shadow .2s}
+.anime-hero .primary:hover {transform:translateY(-3px);box-shadow:0 0 34px #ed183aab!important}
+.anime-hero .stats {position:relative;z-index:4;margin-top:40px!important;max-width:540px;border:1px solid #a82a3a!important;background:#08090dd9!important;backdrop-filter:blur(8px)}
+.anime-hero .stats b {color:#fff!important;font-family:'Barlow Condensed',Impact,sans-serif;font-size:clamp(25px,4vw,38px)}
+.anime-hero .stats small {color:#f6a5af!important;font-family:'Rajdhani',sans-serif;letter-spacing:1px}
+.anime-visual {position:absolute;inset:0 0 0 45%;z-index:1;pointer-events:none}
+.anime-moon {position:absolute;right:10%;top:9%;width:min(27vw,245px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff8b91,#bd263a 53%,#430613 75%);box-shadow:0 0 65px #f7234866;animation:animePulse 4s ease-in-out infinite}
+.anime-character {position:absolute;display:flex;flex-direction:column;justify-content:end;align-items:center;overflow:hidden;width:clamp(105px,15vw,190px);height:clamp(170px,24vw,300px);border:1px solid #ff445c77;border-radius:90px 90px 14px 14px;background:linear-gradient(165deg,#2b2b46,#120d19 52%,#560c1c);box-shadow:0 15px 28px #000a,0 0 25px #f51b3730;transform:rotate(var(--tilt));animation:animeFloat 4s ease-in-out infinite;animation-delay:var(--delay)}
+.anime-character:before {content:'';position:absolute;top:13%;width:58%;height:38%;border-radius:48% 48% 43% 43%;background:linear-gradient(140deg,var(--hair),#343047);box-shadow:0 10px 0 #12121a,0 0 20px var(--glow);clip-path:polygon(0 25%,20% 0,40% 16%,62% 0,100% 25%,90% 100%,10% 100%)}
+.anime-character:after {content:'';position:absolute;bottom:13%;width:96%;height:43%;border-radius:48% 48% 0 0;background:linear-gradient(120deg,#242535,#07080e);border-top:3px solid var(--glow)}
+.anime-character span {position:relative;z-index:2;width:100%;padding:8px 5px;text-align:center;background:#08090de8;color:#fff;font:800 16px 'Rajdhani',sans-serif;letter-spacing:2px;text-shadow:0 0 10px var(--glow)}
+.anime-character img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
+.anime-character img[hidden] {display:none}
+.anime-character.gojo {--hair:#e6e8ff;--glow:#69baff;--tilt:-9deg;--delay:-1s;right:22%;bottom:8%}
+.anime-character.kaneki {--hair:#c6cad4;--glow:#f12752;--tilt:7deg;--delay:-2s;right:53%;bottom:15%}
+.anime-character.killua {--hair:#f0f4ff;--glow:#45c9ff;--tilt:8deg;--delay:-.4s;right:1%;bottom:24%}
+.anime-character.itachi {--hair:#17121d;--glow:#ff4053;--tilt:-4deg;--delay:-2.8s;right:32%;top:4%}
+.anime-spark {position:absolute;width:5px;height:5px;border-radius:50%;background:#ff4a64;box-shadow:0 0 15px #ff254a;animation:animeSpark 3s linear infinite;left:var(--x);top:var(--y);animation-delay:var(--delay)}
+.showcase-card {border-color:#7e2532!important;background:linear-gradient(150deg,#151016,#0c0d14)!important;box-shadow:0 8px 30px #0005}
+.showcase-name,.showcase-code-title {color:#ff6474!important}
+.showcase-btn {background:linear-gradient(125deg,#b5162c,#f43d51)!important;color:white!important}
+.showcase-manual-btn {background:#2c1b25!important;border:1px solid #8c4252!important}
+.showcase-feature {border-color:#77303d!important;background:#27151e!important;color:#ffb7c0!important}
+.showcase-notice {border-color:#873747!important;background:#26131c!important;color:#ffd5db!important}
+.showcase-logo,.owner-avatar-img {border-color:#e54259!important}
+.manual-copy-panel {border-color:#d53a50!important}
+@keyframes animeRotate {to {transform:rotate(360deg)}}
+@keyframes animePulse {50% {transform:scale(1.05);filter:brightness(1.25)}}
+@keyframes animeFloat {50% {transform:translateY(-12px) rotate(var(--tilt))}}
+@keyframes animeSpark {0% {opacity:0;transform:translateY(20px)}30% {opacity:1}100% {opacity:0;transform:translateY(-90px)}}
+@media(max-width:700px){.anime-hero {min-height:620px;padding:24px!important}.anime-hero:after {background:linear-gradient(180deg,#09080de8 0%,#09080dd9 50%,#09080d66 100%)}.anime-hero .anime-content {max-width:100%}.anime-hero h1 {font-size:clamp(42px,11vw,66px)!important}.anime-hero p {max-width:280px}.anime-visual {inset:35% 0 0 0;opacity:.78}.anime-moon {width:170px;right:12%;top:10%}.anime-character {width:105px;height:165px}.anime-character.gojo {right:23%;bottom:3%}.anime-character.kaneki {right:55%;bottom:8%}.anime-character.killua {right:0;bottom:12%}.anime-character.itachi {right:35%;top:2%}.anime-hero .stats {margin-top:220px!important}}
+@media(prefers-reduced-motion:reduce){.anime-hero:before,.anime-moon,.anime-character,.anime-spark {animation:none!important}}
+
 </style>
 
-<section class="hero">
-  <div class="eyebrow">
-    ✦ THE ROBLOX SCRIPT DESTINATION
+<section class="hero anime-hero" aria-label="YOUKO HUB anime script library">
+  <div class="anime-visual" aria-hidden="true">
+    <div class="anime-moon"></div>
+    <div class="anime-character itachi"><img src="{{ url_for('static', filename='anime/itachi.webp') }}" alt="" loading="lazy" onerror="this.hidden=true"><span>ITACHI</span></div>
+    <div class="anime-character kaneki"><img src="{{ url_for('static', filename='anime/kaneki.webp') }}" alt="" loading="lazy" onerror="this.hidden=true"><span>KANEKI</span></div>
+    <div class="anime-character killua"><img src="{{ url_for('static', filename='anime/killua.webp') }}" alt="" loading="lazy" onerror="this.hidden=true"><span>KILLUA</span></div>
+    <div class="anime-character gojo"><img src="{{ url_for('static', filename='anime/gojo.webp') }}" alt="" loading="lazy" onerror="this.hidden=true"><span>GOJO</span></div>
+    <i class="anime-spark" style="--x:17%;--y:70%;--delay:0s"></i><i class="anime-spark" style="--x:82%;--y:31%;--delay:-1s"></i><i class="anime-spark" style="--x:56%;--y:62%;--delay:-2s"></i><i class="anime-spark" style="--x:30%;--y:24%;--delay:-.5s"></i>
   </div>
-
-  <h1>
-    Find Script next<br>
-    <span>Roblox power-up.</span>
-  </h1>
-
-  <p>
-    One home for free and premium Roblox scripts.
-    Discover, explore and copy in seconds.
-  </p>
-
-  <a class="primary" href="#library">
-    Explore Scripts ↗
-  </a>
-
-  <div class="stats">
-    <div>
-      <b>{{ scripts|length }}</b>
-      <small>SCRIPTS</small>
-    </div>
-    <div>
-      <b>{{ owners|length }}</b>
-      <small>OWNERS</small>
-    </div>
-    <div>
-      <b>24/7</b>
-      <small>ACCESS</small>
+  <div class="anime-content">
+    <div class="eyebrow">✦ THE ANIME SCRIPT DESTINATION</div>
+    <h1>FIND THE BEST<br><span>ROBLOX SCRIPT</span></h1>
+    <p>WITH YOUKO HUB — Discover free and premium Roblox scripts. Search, explore and copy in seconds.</p>
+    <a class="primary" href="#library">EXPLORE SCRIPTS ↗</a>
+    <div class="stats">
+      <div><b>{{ scripts|length }}</b><small>SCRIPTS</small></div>
+      <div><b>{{ owners|length }}</b><small>OWNERS</small></div>
+      <div><b>24/7</b><small>ACCESS</small></div>
     </div>
   </div>
 </section>
