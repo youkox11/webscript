@@ -1,7 +1,7 @@
-"""YOUKO HUB - Flask script library.
+"""Roblox Script Hub - Flask application (Wasmer-ready).
 
-Keeps the existing SQLite database and Flask endpoints while adding a
-persistent admin session, script ordering, and owner avatar uploads.
+Preserves existing endpoints and SQLite data. Configure DATA_DIR to a mounted
+persistent directory before using the application in production.
 """
 import os
 import re
@@ -20,11 +20,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 BASE = Path(__file__).resolve().parent
-DATA = Path(os.environ.get('DATA_DIR', str(BASE / 'data')))
+# Set DATA_DIR to the absolute path of a *mounted persistent volume* on Wasmer.
+# The default is for local development only; it may be ephemeral in the cloud.
+configured_data_dir = os.environ.get('DATA_DIR', '').strip()
+if configured_data_dir and not Path(configured_data_dir).is_absolute():
+    raise RuntimeError('DATA_DIR must be an absolute path')
+if os.environ.get('REQUIRE_PERSISTENT_DATA') == '1' and not configured_data_dir:
+    raise RuntimeError('Set DATA_DIR to a persistent mounted volume before deploying')
+DATA = Path(configured_data_dir) if configured_data_dir else BASE / 'data'
 DATA.mkdir(parents=True, exist_ok=True)
 UPLOADS = DATA / 'uploads'
 UPLOADS.mkdir(parents=True, exist_ok=True)
-DB = DATA / 'site.sqlite3'
+DB = DATA / 'site.sqlite3' 
 
 app = Flask(__name__)
 
@@ -119,6 +126,17 @@ def admin_required(f):
 
 
 SCRIPT_ORDER = 'SELECT * FROM scripts ORDER BY sort_order ASC, id DESC'
+
+
+@app.route('/health')
+def health():
+    """Basic liveness check; does not expose secrets or database content."""
+    try:
+        with db() as c:
+            c.execute('SELECT 1').fetchone()
+    except sqlite3.Error:
+        return {'status': 'error'}, 503
+    return {'status': 'ok'}
 
 
 @app.route('/')
